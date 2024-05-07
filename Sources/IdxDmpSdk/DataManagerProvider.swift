@@ -1,4 +1,7 @@
 import Foundation
+import UIKit
+import AdSupport
+import AppTrackingTransparency
 
 public final class DataManagerProvider {
     let providerId: String
@@ -10,6 +13,7 @@ public final class DataManagerProvider {
     var providerConfig: ProviderConfigStruct?
     var eventRequestQueue: [EventQueueItem] = []
     var definitionIds: [String] = []
+    var advertisingId: String = ""
     
     public init(providerId: String, monitoringLabel: String?, completionHandler: @escaping (Any?) -> Void = {_ in}) {
         self.providerId = providerId
@@ -22,6 +26,15 @@ public final class DataManagerProvider {
             } else {
                 throw EDMPError.databaseConnectFailed
             }
+
+            if #available(iOS 14.0, *) {
+                ATTrackingManager.requestTrackingAuthorization { status in
+                    if (status == .authorized) {
+                        self.advertisingId = ASIdentifierManager.shared().advertisingIdentifier.uuidString
+                    }
+                }
+            }
+
             self.getConfig(completionHandler: completionHandler)
         } catch {
             databaseStorage = nil
@@ -56,6 +69,19 @@ public final class DataManagerProvider {
     
     public func getProviderId() -> String {
         return providerId
+    }
+    
+    private func getDeviceId() -> String {
+        if (!advertisingId.isEmpty) {
+            return advertisingId
+        }
+
+        let identifierManager = ASIdentifierManager.shared()
+        if identifierManager.isAdvertisingTrackingEnabled {
+            return identifierManager.advertisingIdentifier.uuidString
+        }
+        
+        return UIDevice.current.identifierForVendor?.uuidString ?? "UNKNOWN_DEVICE_ID"
     }
     
     private func updateUserState(data: Data?) {
@@ -216,12 +242,43 @@ public final class DataManagerProvider {
                         )
                     }
                 }
+                
+                PeriodicActions.runAction(
+                    intervalSec: self.providerConfig?.pingFrequencySec,
+                    actionName: "SEND_SYNC_EVENT",
+                    action: self.sendSyncEvent
+                )
 
                 completionHandler(error)
             }
         } catch {
             completionHandler(error)
             monitoring.complete(error)
+        }
+    }
+    
+    private func sendSyncEvent() {
+        monitoring.log("start sending sync event")
+        guard let userId = getUserId() else {
+            return monitoring.error(EDMPError.userIdIsEmpty)
+        }
+        
+        do {
+            let eventBody = SyncEventRequestStruct(
+                event: EDMPSyncEvent.AUDIENCE_PING,
+                userId: userId,
+                providerId: self.providerId,
+                actualAudienceCodes: definitionIds
+            )
+
+            try Api.post(
+                url: Config.Api.eventUrl,
+                queryItems: ["ts": getTimestamp(), "dmpid": userId],
+                body: eventBody
+            )
+            monitoring.log("end sending sync event")
+        } catch {
+            monitoring.error(error)
         }
     }
     
@@ -301,11 +358,9 @@ public final class DataManagerProvider {
             event: EDMPEvent.PAGE_VIEW,
             userId: userId,
             providerId: self.providerId,
+            fingerprint: self.getDeviceId(),
             properties: properties
         )
-        
-        print("eventBody")
-        print(eventBody)
         
         do {
             try Api.post(

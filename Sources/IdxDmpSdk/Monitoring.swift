@@ -13,7 +13,7 @@ final class Monitoring {
     private var logHistory: [String] = []
     private var userId: String?
     private var label: String?
-    private var buildNumber: String = "2.3.2"
+    private var buildNumber: String = "2.4.0"
     
     init (label: String?) {
         self.label = label
