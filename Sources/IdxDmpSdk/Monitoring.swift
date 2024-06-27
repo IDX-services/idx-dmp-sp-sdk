@@ -13,7 +13,7 @@ final class Monitoring {
     private var logHistory: [String] = []
     private var userId: String?
     private var label: String?
-    private var buildNumber: String = "2.4.0"
+    private var buildNumber: String = "2.4.5"
     
     init (label: String?) {
         self.label = label
@@ -44,6 +44,10 @@ final class Monitoring {
 
         logHistory.append(formattedMessage)
         NSLog(formattedMessage)
+    }
+    
+    func getBuildNumber () -> String {
+        return buildNumber
     }
     
     func setMonitoringConfig (_ monitoringConfig: MonitoringConfigStruct) {
