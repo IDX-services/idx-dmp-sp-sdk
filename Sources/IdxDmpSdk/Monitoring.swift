@@ -13,7 +13,7 @@ final class Monitoring {
     private var logHistory: [String] = []
     private var userId: String?
     private var label: String?
-    private var buildNumber: String = "2.4.5"
+    private var buildNumber: String = "2.4.6"
     
     init (label: String?) {
         self.label = label
@@ -84,8 +84,6 @@ final class Monitoring {
             self.printMessage("Remove all events failed", ELogLevel.Errors)
         case EDMPError.removeAllDefinitions:
             self.printMessage("Remove all definitions failed", ELogLevel.Errors)
-        case EDMPError.removeAllStorage:
-            self.printMessage("Remove all storage failed", ELogLevel.Errors)
         case EDMPError.databaseConnectFailed:
             self.printMessage("Database is not available", ELogLevel.Errors)
         case EDMPError.userIdIsEmpty:
