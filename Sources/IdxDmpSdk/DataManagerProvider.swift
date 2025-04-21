@@ -28,11 +28,7 @@ public final class DataManagerProvider {
         
         self.monitoring.log("Init with provider id: \(providerId)")
         do {
-            if #available(iOS 12.0, *) {
-                databaseStorage = try Storage(monitoring: self.monitoring)
-            } else {
-                throw EDMPError.databaseConnectFailed
-            }
+            databaseStorage = try Storage(monitoring: self.monitoring)
 
             if #available(iOS 14.0, *) {
                 ATTrackingManager.requestTrackingAuthorization { status in
@@ -144,22 +140,20 @@ public final class DataManagerProvider {
     }
     
     private func calculateAudiences() {
-        guard let events = self.databaseStorage?.getEvents(),
-              let definitions = self.databaseStorage?.getDefinitions() else {
-            monitoring.error(EDMPError.databaseConnectFailed)
-            return
-        }
-        
-        let matchedDefinitionIds = matchDefinitions(events: Array(events), definitions: Array(definitions))
-        
-        self.monitoring.log("matchedDefinitionIds: \(matchedDefinitionIds)")
-        
-        self.sendStatisticEvent(newDefinitionsIds: matchedDefinitionIds, definitions: definitions)
-        
-        self.definitionIds = matchedDefinitionIds
-        self.setPrevDefinitionIds(matchedDefinitionIds)
-        
-        self.removeOneTimeEvents()
+        self.databaseStorage?.getEvents({ events in
+            self.databaseStorage?.getDefinitions({ definitions in
+                let matchedDefinitionIds = matchDefinitions(events: Array(events), definitions: Array(definitions))
+                
+                self.monitoring.log("matchedDefinitionIds: \(matchedDefinitionIds)")
+                
+                self.sendStatisticEvent(newDefinitionsIds: matchedDefinitionIds, definitions: definitions)
+                
+                self.definitionIds = matchedDefinitionIds
+                self.setPrevDefinitionIds(matchedDefinitionIds)
+                
+                self.removeOneTimeEvents()
+            })
+        })
     }
     
     public func getDefinitionIds() -> String {
