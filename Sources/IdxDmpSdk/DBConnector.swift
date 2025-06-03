@@ -24,7 +24,7 @@ final class DBConnector {
     private init() throws {
         StorageTransformer.register()
         
-        let modelURL = Bundle(for: Storage.self).url(forResource: "IdxDmpSdkStorage", withExtension: "momd")
+        let modelURL = Bundle.module.url(forResource: "IdxDmpSdkStorage", withExtension: "momd")
         let container: NSPersistentContainer
 
         guard let model = modelURL.flatMap(NSManagedObjectModel.init) else {
