@@ -9,12 +9,12 @@ public final class DMPWebViewConnector: NSObject, WKScriptMessageHandler {
     private var userId: String = ""
     private var definitionIds: String = ""
     
-    private func sdkMetaDataToJson(_ sdkMetaData: SdkMetaDataStruct) -> String {
+    private func windowDataToJson(_ windowData: DmpSdkWindowData) -> String {
         do {
-            let data = try JSONEncoder().encode(sdkMetaData)
-            return String(data: data, encoding: .utf8) ?? ""
+            let data = try JSONEncoder().encode(windowData)
+            return String(data: data, encoding: .utf8) ?? "{}"
         } catch {
-            return ""
+            return "{}"
         }
     }
 
@@ -32,7 +32,13 @@ public final class DMPWebViewConnector: NSObject, WKScriptMessageHandler {
             appVer: appVersion
         )
 
-        let javaScriptSource = "window.dmpsdk = { properties: { sdkMetaData: \(sdkMetaDataToJson(sdkMetaData)) } }"
+        let windowData = DmpSdkWindowData(
+            properties: DmpSdkWindowDataProperties(
+                sdkMetaData: sdkMetaData,
+                deviceId: DeviceIdentifier.getDeviceId()
+            )
+        )
+        let javaScriptSource = "window.dmpsdk = \(windowDataToJson(windowData))"
         let sdkMetaDataScript = WKUserScript(
             source: javaScriptSource,
             injectionTime: .atDocumentStart,
