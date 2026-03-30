@@ -1,7 +1,5 @@
 import Foundation
 import UIKit
-import AdSupport
-import AppTrackingTransparency
 
 public final class DataManagerProvider {
     let providerId: String
@@ -14,7 +12,6 @@ public final class DataManagerProvider {
 
     var providerConfig: ProviderConfigStruct?
     var definitionIds: [String] = []
-    var advertisingId: String = ""
     
     public init(providerId: String, appName: String, appVersion: String, completionHandler: @escaping (Any?) -> Void = {_ in}) {
         self.providerId = providerId
@@ -29,14 +26,6 @@ public final class DataManagerProvider {
         self.monitoring.log("Init with provider id: \(providerId)")
         do {
             databaseStorage = try Storage(monitoring: self.monitoring)
-
-            if #available(iOS 14.0, *) {
-                ATTrackingManager.requestTrackingAuthorization { status in
-                    if (status == .authorized) {
-                        self.advertisingId = ASIdentifierManager.shared().advertisingIdentifier.uuidString
-                    }
-                }
-            }
 
             self.getConfig(completionHandler: completionHandler)
             self.getState(completionHandler: completionHandler)
@@ -75,17 +64,8 @@ public final class DataManagerProvider {
         return providerId
     }
     
-    private func getDeviceId() -> String {
-        if (!advertisingId.isEmpty) {
-            return advertisingId
-        }
-
-        let identifierManager = ASIdentifierManager.shared()
-        if identifierManager.isAdvertisingTrackingEnabled {
-            return identifierManager.advertisingIdentifier.uuidString
-        }
-        
-        return UIDevice.current.identifierForVendor?.uuidString ?? "UNKNOWN_DEVICE_ID"
+    public func getDeviceId() -> String {
+        return DeviceIdentifier.getDeviceId()
     }
     
     private func updateUserState(data: Data?) {
@@ -167,6 +147,12 @@ public final class DataManagerProvider {
     
     private func isSdkEnabled() -> Bool {
         return providerConfig?.providerSdk?.sdkIosEnabled ?? true
+    }
+
+    private func isEventDisabled(_ event: String) -> Bool {
+        return self.providerConfig != nil && self.providerConfig?.excludedEvents.first {rule in
+            return rule.type == event
+        } != nil
     }
     
     private func isIgnoreEvents(properties: EventRequestPropertiesStruct) -> Bool {
@@ -269,6 +255,12 @@ public final class DataManagerProvider {
     private func sendSyncEvent() {
         asyncEventsQueue.addTask { taskCompletion in
             self.monitoring.log("start sending sync event")
+
+            if (self.isEventDisabled(EDMPSyncEvent.AUDIENCE_PING.rawValue)) {
+                self.monitoring.log("sync event is disabled by config")
+                return taskCompletion()
+            }
+
             guard let userId = self.getUserId() else {
                 self.monitoring.error(EDMPError.userIdIsEmpty)
                 
@@ -280,6 +272,7 @@ public final class DataManagerProvider {
                     event: EDMPSyncEvent.AUDIENCE_PING,
                     userId: userId,
                     providerId: self.providerId,
+                    deviceId: self.getDeviceId(),
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
                 )
@@ -312,28 +305,46 @@ public final class DataManagerProvider {
             let enterAndExitDefinitionIds = getEnterAndExitDefinitionIds(oldDefinitionIds: self.definitionIds, newDefinitionIds: newDefinitionsIds, definitions: definitions)
             
             self.monitoring.log("enterDefinitionIds: \(enterAndExitDefinitionIds.enterIds), exitDefinitionIds: \(enterAndExitDefinitionIds.exitIds)")
+
+            if (self.isEventDisabled(EDMPSyncEvent.AUDIENCE_PING.rawValue)) {
+                self.monitoring.log("sync event is disabled by config")
+                return taskCompletion()
+            }
             
-            let enterEventRequest = enterAndExitDefinitionIds.enterIds.map { id in
+            let disabledAudienceEnter = self.isEventDisabled(EDMPStatisticEvent.AUDIENCE_ENTER.rawValue)
+            let disabledAudienceExit = self.isEventDisabled(EDMPStatisticEvent.AUDIENCE_EXIT.rawValue)
+            
+            if (disabledAudienceEnter) {
+                self.monitoring.log("statistic enter event is disabled by config");
+            }
+            
+            if (disabledAudienceExit) {
+                self.monitoring.log("statistic exit event is disabled by config");
+            }
+            
+            let enterEventRequest = disabledAudienceEnter ? enterAndExitDefinitionIds.enterIds.map { id in
                 return StatisticEventRequestStruct(
                     event: EDMPStatisticEvent.AUDIENCE_ENTER,
                     userId: userId,
                     providerId: self.providerId,
+                    deviceId: self.getDeviceId(),
                     audienceCode: id,
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
                 )
-            }
+            } : []
             
-            let exitEventRequest = enterAndExitDefinitionIds.exitIds.map { id in
+            let exitEventRequest = disabledAudienceExit ? enterAndExitDefinitionIds.exitIds.map { id in
                 return StatisticEventRequestStruct(
                     event: EDMPStatisticEvent.AUDIENCE_EXIT,
                     userId: userId,
                     providerId: self.providerId,
+                    deviceId: self.getDeviceId(),
                     audienceCode: id,
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
                 )
-            }
+            } : []
             
             let events = enterEventRequest + exitEventRequest
             
@@ -365,6 +376,13 @@ public final class DataManagerProvider {
                 self.monitoring.warning("Event sending has been ignored! SDK is disabled, provider id: \(self.providerId)")
                 completionHandler(nil)
                 
+                return taskCompletion()
+            }
+
+            if (self.isEventDisabled(EDMPEvent.PAGE_VIEW.rawValue)) {
+                self.monitoring.warning("page view event is disabled by config")
+                completionHandler(nil)
+
                 return taskCompletion()
             }
 
