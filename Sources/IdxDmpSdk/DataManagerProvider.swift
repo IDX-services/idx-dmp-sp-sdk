@@ -1,7 +1,5 @@
 import Foundation
 import UIKit
-import AdSupport
-import AppTrackingTransparency
 
 public final class DataManagerProvider {
     let providerId: String
@@ -14,7 +12,6 @@ public final class DataManagerProvider {
 
     var providerConfig: ProviderConfigStruct?
     var definitionIds: [String] = []
-    var advertisingId: String = ""
     
     public init(providerId: String, appName: String, appVersion: String, completionHandler: @escaping (Any?) -> Void = {_ in}) {
         self.providerId = providerId
@@ -29,14 +26,6 @@ public final class DataManagerProvider {
         self.monitoring.log("Init with provider id: \(providerId)")
         do {
             databaseStorage = try Storage(monitoring: self.monitoring)
-
-            if #available(iOS 14.0, *) {
-                ATTrackingManager.requestTrackingAuthorization { status in
-                    if (status == .authorized) {
-                        self.advertisingId = ASIdentifierManager.shared().advertisingIdentifier.uuidString
-                    }
-                }
-            }
 
             self.getConfig(completionHandler: completionHandler)
             self.getState(completionHandler: completionHandler)
@@ -75,17 +64,8 @@ public final class DataManagerProvider {
         return providerId
     }
     
-    private func getDeviceId() -> String {
-        if (!advertisingId.isEmpty) {
-            return advertisingId
-        }
-
-        let identifierManager = ASIdentifierManager.shared()
-        if identifierManager.isAdvertisingTrackingEnabled {
-            return identifierManager.advertisingIdentifier.uuidString
-        }
-        
-        return UIDevice.current.identifierForVendor?.uuidString ?? "UNKNOWN_DEVICE_ID"
+    public func getDeviceId() -> String {
+        return DeviceIdentifier.getDeviceId()
     }
     
     private func updateUserState(data: Data?) {
@@ -292,6 +272,7 @@ public final class DataManagerProvider {
                     event: EDMPSyncEvent.AUDIENCE_PING,
                     userId: userId,
                     providerId: self.providerId,
+                    deviceId: self.getDeviceId(),
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
                 )
@@ -346,6 +327,7 @@ public final class DataManagerProvider {
                     event: EDMPStatisticEvent.AUDIENCE_ENTER,
                     userId: userId,
                     providerId: self.providerId,
+                    deviceId: self.getDeviceId(),
                     audienceCode: id,
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
@@ -357,6 +339,7 @@ public final class DataManagerProvider {
                     event: EDMPStatisticEvent.AUDIENCE_EXIT,
                     userId: userId,
                     providerId: self.providerId,
+                    deviceId: self.getDeviceId(),
                     audienceCode: id,
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
