@@ -202,6 +202,12 @@ struct ProviderExclusionStruct: Decodable {
     let type: EProviderExclusionType
 }
 
+struct EventExclusionStruct: Decodable {
+    let uuid: String
+    let name: String
+    let type: String
+}
+
 struct ProviderActivationStruct: Decodable {
     let uuid: String?
     let sdkWebEnabled: Bool?
@@ -215,6 +221,7 @@ struct ProviderConfigStruct: Decodable {
     let uuid: String
     let fieldExtractions: [FieldExtractionConfigStruct]
     let providerExclusions: [ProviderExclusionStruct]
+    let excludedEvents: [EventExclusionStruct]
     let isDataCollectionEnabled: Bool
     let isDFPActivationEnabled: Bool
     let pingFrequencySec: Int

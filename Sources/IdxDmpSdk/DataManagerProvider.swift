@@ -168,6 +168,12 @@ public final class DataManagerProvider {
     private func isSdkEnabled() -> Bool {
         return providerConfig?.providerSdk?.sdkIosEnabled ?? true
     }
+
+    private func isEventDisabled(_ event: String) -> Bool {
+        return self.providerConfig != nil && self.providerConfig?.excludedEvents.first {rule in
+            return rule.type == event
+        } != nil
+    }
     
     private func isIgnoreEvents(properties: EventRequestPropertiesStruct) -> Bool {
         do {
@@ -269,6 +275,12 @@ public final class DataManagerProvider {
     private func sendSyncEvent() {
         asyncEventsQueue.addTask { taskCompletion in
             self.monitoring.log("start sending sync event")
+
+            if (self.isEventDisabled(EDMPSyncEvent.AUDIENCE_PING.rawValue)) {
+                self.monitoring.log("sync event is disabled by config")
+                return taskCompletion()
+            }
+
             guard let userId = self.getUserId() else {
                 self.monitoring.error(EDMPError.userIdIsEmpty)
                 
@@ -312,8 +324,24 @@ public final class DataManagerProvider {
             let enterAndExitDefinitionIds = getEnterAndExitDefinitionIds(oldDefinitionIds: self.definitionIds, newDefinitionIds: newDefinitionsIds, definitions: definitions)
             
             self.monitoring.log("enterDefinitionIds: \(enterAndExitDefinitionIds.enterIds), exitDefinitionIds: \(enterAndExitDefinitionIds.exitIds)")
+
+            if (self.isEventDisabled(EDMPSyncEvent.AUDIENCE_PING.rawValue)) {
+                self.monitoring.log("sync event is disabled by config")
+                return taskCompletion()
+            }
             
-            let enterEventRequest = enterAndExitDefinitionIds.enterIds.map { id in
+            let disabledAudienceEnter = self.isEventDisabled(EDMPStatisticEvent.AUDIENCE_ENTER.rawValue)
+            let disabledAudienceExit = self.isEventDisabled(EDMPStatisticEvent.AUDIENCE_EXIT.rawValue)
+            
+            if (disabledAudienceEnter) {
+                self.monitoring.log("statistic enter event is disabled by config");
+            }
+            
+            if (disabledAudienceExit) {
+                self.monitoring.log("statistic exit event is disabled by config");
+            }
+            
+            let enterEventRequest = disabledAudienceEnter ? enterAndExitDefinitionIds.enterIds.map { id in
                 return StatisticEventRequestStruct(
                     event: EDMPStatisticEvent.AUDIENCE_ENTER,
                     userId: userId,
@@ -322,9 +350,9 @@ public final class DataManagerProvider {
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
                 )
-            }
+            } : []
             
-            let exitEventRequest = enterAndExitDefinitionIds.exitIds.map { id in
+            let exitEventRequest = disabledAudienceExit ? enterAndExitDefinitionIds.exitIds.map { id in
                 return StatisticEventRequestStruct(
                     event: EDMPStatisticEvent.AUDIENCE_EXIT,
                     userId: userId,
@@ -333,7 +361,7 @@ public final class DataManagerProvider {
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
                 )
-            }
+            } : []
             
             let events = enterEventRequest + exitEventRequest
             
@@ -365,6 +393,13 @@ public final class DataManagerProvider {
                 self.monitoring.warning("Event sending has been ignored! SDK is disabled, provider id: \(self.providerId)")
                 completionHandler(nil)
                 
+                return taskCompletion()
+            }
+
+            if (self.isEventDisabled(EDMPEvent.PAGE_VIEW.rawValue)) {
+                self.monitoring.warning("page view event is disabled by config")
+                completionHandler(nil)
+
                 return taskCompletion()
             }
 
