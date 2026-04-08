@@ -76,7 +76,8 @@ public struct EventRequestPropertiesStruct: Encodable {
 
 struct DmpSdkWindowDataProperties: Encodable {
     let sdkMetaData: SdkMetaDataStruct
-    let deviceId: String
+    let idfa: String?
+    let idfaType: String?
 }
 
 struct DmpSdkWindowData: Encodable {
@@ -107,7 +108,8 @@ public struct EventRequestStruct: Encodable {
     let userId: String
     let providerId: String
     let dxf: String
-    let deviceId: String
+    let idfa: String?
+    let idfaType: String?
     let properties: EventRequestPropertiesStruct
     let srcMeta: SdkMetaDataStruct
 }
@@ -129,7 +131,8 @@ struct StatisticEventRequestStruct: Encodable {
     let event: EDMPStatisticEvent
     let userId: String
     let providerId: String
-    let deviceId: String
+    let idfa: String?
+    let idfaType: String?
     let audienceCode: String
     let actualAudienceCodes: [String]
     let properties: EventRequestAdditionalPropertiesStruct
@@ -139,7 +142,8 @@ struct StatisticEventRequestStruct: Encodable {
         event: EDMPStatisticEvent,
         userId: String,
         providerId: String,
-        deviceId: String,
+        idfa: String?,
+        idfaType: String?,
         audienceCode: String,
         actualAudienceCodes: [String],
         srcMeta: SdkMetaDataStruct
@@ -147,7 +151,8 @@ struct StatisticEventRequestStruct: Encodable {
         self.event = event
         self.userId = userId
         self.providerId = providerId
-        self.deviceId = deviceId
+        self.idfa = idfa
+        self.idfaType = idfaType
         self.audienceCode = audienceCode
         self.actualAudienceCodes = actualAudienceCodes
         self.properties = EventRequestAdditionalPropertiesStruct()
@@ -159,7 +164,8 @@ struct SyncEventRequestStruct: Encodable {
     let event: EDMPSyncEvent
     let userId: String
     let providerId: String
-    let deviceId: String
+    let idfa: String?
+    let idfaType: String?
     let actualAudienceCodes: [String]
     let properties: EventRequestAdditionalPropertiesStruct
     let srcMeta: SdkMetaDataStruct
@@ -168,14 +174,16 @@ struct SyncEventRequestStruct: Encodable {
         event: EDMPSyncEvent,
         userId: String,
         providerId: String,
-        deviceId: String,
+        idfa: String?,
+        idfaType: String?,
         actualAudienceCodes: [String],
         srcMeta: SdkMetaDataStruct
     ) {
         self.event = event
         self.userId = userId
         self.providerId = providerId
-        self.deviceId = deviceId
+        self.idfa = idfa
+        self.idfaType = idfaType
         self.actualAudienceCodes = actualAudienceCodes
         self.properties = EventRequestAdditionalPropertiesStruct()
         self.srcMeta = srcMeta

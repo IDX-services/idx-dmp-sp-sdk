@@ -32,10 +32,12 @@ public final class DMPWebViewConnector: NSObject, WKScriptMessageHandler {
             appVer: appVersion
         )
 
+        let advertisingId = DeviceIdentifier.getAdvertisingId()
         let windowData = DmpSdkWindowData(
             properties: DmpSdkWindowDataProperties(
                 sdkMetaData: sdkMetaData,
-                deviceId: DeviceIdentifier.getDeviceId()
+                idfa: advertisingId,
+                idfaType: advertisingId != nil ? "ios" : nil
             )
         )
         let javaScriptSource = "window.dmpsdk = \(windowDataToJson(windowData))"

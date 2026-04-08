@@ -12,7 +12,7 @@ public struct DeviceIdentifier {
         }
     }
 
-    public static func getDeviceId() -> String {
+    public static func getAdvertisingId() -> String? {
         if #available(iOS 14.0, *) {
             if ATTrackingManager.trackingAuthorizationStatus == .authorized {
                 return ASIdentifierManager.shared().advertisingIdentifier.uuidString
@@ -23,6 +23,10 @@ public struct DeviceIdentifier {
                 return identifierManager.advertisingIdentifier.uuidString
             }
         }
-        return UIDevice.current.identifierForVendor?.uuidString ?? "UNKNOWN_DEVICE_ID"
+        return nil
+    }
+
+    public static func getDeviceId() -> String {
+        return getAdvertisingId() ?? UIDevice.current.identifierForVendor?.uuidString ?? "UNKNOWN_DEVICE_ID"
     }
 }

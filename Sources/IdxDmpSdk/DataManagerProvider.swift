@@ -268,11 +268,13 @@ public final class DataManagerProvider {
             }
             
             do {
+                let advertisingId = DeviceIdentifier.getAdvertisingId()
                 let eventBody = SyncEventRequestStruct(
                     event: EDMPSyncEvent.AUDIENCE_PING,
                     userId: userId,
                     providerId: self.providerId,
-                    deviceId: self.getDeviceId(),
+                    idfa: advertisingId,
+                    idfaType: advertisingId != nil ? "ios" : nil,
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
                 )
@@ -322,24 +324,29 @@ public final class DataManagerProvider {
                 self.monitoring.log("statistic exit event is disabled by config");
             }
             
+            let statisticAdvertisingId = DeviceIdentifier.getAdvertisingId()
+            let statisticIdfaType: String? = statisticAdvertisingId != nil ? "ios" : nil
+
             let enterEventRequest = disabledAudienceEnter ? enterAndExitDefinitionIds.enterIds.map { id in
                 return StatisticEventRequestStruct(
                     event: EDMPStatisticEvent.AUDIENCE_ENTER,
                     userId: userId,
                     providerId: self.providerId,
-                    deviceId: self.getDeviceId(),
+                    idfa: statisticAdvertisingId,
+                    idfaType: statisticIdfaType,
                     audienceCode: id,
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
                 )
             } : []
-            
+
             let exitEventRequest = disabledAudienceExit ? enterAndExitDefinitionIds.exitIds.map { id in
                 return StatisticEventRequestStruct(
                     event: EDMPStatisticEvent.AUDIENCE_EXIT,
                     userId: userId,
                     providerId: self.providerId,
-                    deviceId: self.getDeviceId(),
+                    idfa: statisticAdvertisingId,
+                    idfaType: statisticIdfaType,
                     audienceCode: id,
                     actualAudienceCodes: self.definitionIds,
                     srcMeta: self.sdkMetaData
@@ -401,12 +408,14 @@ public final class DataManagerProvider {
                 return taskCompletion()
             }
             
+            let pageViewAdvertisingId = DeviceIdentifier.getAdvertisingId()
             let eventBody = EventRequestStruct(
                 event: EDMPEvent.PAGE_VIEW,
                 userId: userId,
                 providerId: self.providerId,
                 dxf: self.getDeviceId(),
-                deviceId: self.getDeviceId(),
+                idfa: pageViewAdvertisingId,
+                idfaType: pageViewAdvertisingId != nil ? "ios" : nil,
                 properties: properties,
                 srcMeta: self.sdkMetaData
             )
